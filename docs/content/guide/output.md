@@ -306,6 +306,170 @@ Running with `--baseline` and `-o` pointed at the same file destroys the baselin
 - `--baseline` turns off `--stream-findings`, for the same reason `--only-poc` does. The streamer can't know a finding is already in the baseline, so it would print the whole triaged backlog live while the summary reports only the new ones.
 - CLI only. `dalfox server` and the MCP server don't apply `--baseline`, and they ignore `scan.baseline` in a shared config file without a warning.
 
+## Grouping by injection point
+
+A scan that reflects everything can report dozens of hits that are really one
+injectable surface seen through several parameters. `--group-by-injection-point`
+reorganizes the *same* findings into groups so the report answers "how many
+injection points, how many parameters each, and which are actually verified",
+instead of presenting a flat list of near-duplicate lines.
+
+It is strictly opt-in: without the flag (or `--grouping-file`), the output is
+byte-for-byte the flat report described above, and the exit codes are unchanged.
+The scanning and payload logic is not affected — grouping is a render-time layer
+over the findings the scan already produced.
+
+```bash
+dalfox scan https://target.app/p?a=1&b=2 --group-by-injection-point -f json -o grouped.json
+```
+
+### What forms a group and an entry
+
+- An **entry** is one parameter at one wire location on one endpoint. Its stable
+  identity is a digest of the normalized URL (scheme/host lower-cased, default
+  port dropped, query/fragment removed, a payload-carrying path segment replaced
+  by `*`) plus the parameter name and its location (`Query`, `Header`, `Body`,
+  `Path`, …). The identity contains **no scan time, payload, tier or evidence**,
+  so the same input always produces the same identity on every run.
+- A **group** drops the parameter name: hits on different parameters of the same
+  endpoint + location surface fold into one group, which lists every parameter as
+  its own entry. A `q` in the query and a `q` in a cookie stay in different groups.
+- Informational findings (`I`, e.g. outdated libraries) are not injection points;
+  they keep their own `informational_findings` array.
+
+### Verification states
+
+Every entry carries a `verification_status` derived from an actual verification
+action, never guessed by a rule:
+
+| State | Meaning | Counts as high? |
+|-------|---------|-----------------|
+| `verified` | A verification action asserted exploitability — DOM verification parsed an executable position, or an out-of-band callback observed execution | Yes |
+| `suspected` | A signal without a completed verification — a raw reflection (`R`), an AST source→sink finding (`A`), or a DOM phase that answered but proved no executable position | No |
+| `unverified` | A verification request was attempted and **failed on the wire** (no response after retries: reset, refused, timeout). The reason is kept in `verification_reason`. A failed request can never become `verified` | No |
+
+Only `verified` entries contribute to `verified_entries` and the high-severity
+view. When several raw findings collapse onto one entry (payload variants, or an
+`R` later promoted to a `V`), the strongest state wins.
+
+### The `meta.grouping` block and JSON shape
+
+Every structured format gets a `meta.grouping` summary:
+
+```json
+"grouping": {
+  "enabled": true,
+  "injection_points": 1,
+  "parameter_entries": 3,
+  "verified_entries": 1,
+  "raw_finding_count": 12,
+  "false_positive_suppressed": 0,
+  "false_positive_rehits": 0
+}
+```
+
+JSON replaces the flat `findings` array with `injection_point_groups` (each
+group holding its `entries`, and each entry holding its capped verbatim
+`findings` plus `finding_count`). JSONL writes one group object per line after
+the meta line, so a line-oriented consumer can process groups independently.
+The whole document is still assembled and written in one step so a failed write
+never leaves a half report; memory stays bounded by the number of distinct
+injection points (see the per-entry cap below) rather than the raw finding
+count, so a 10k-finding scan does not grow the grouped footprint without limit.
+Markdown, TOML and plain have grouped views too. **SARIF has no group concept**
+— with `--group-by-injection-point -f sarif`, Dalfox prints a warning and emits
+the flat SARIF document; use another format for the grouped view.
+
+Memory is bounded by the number of distinct injection points, not raw findings:
+each entry keeps at most five verbatim findings (the strongest) and reports the
+full total in `finding_count`, so a reflect-everything endpoint under
+`--deep-scan` cannot grow the report without limit.
+
+### False positives and cross-run memory: `--grouping-file`
+
+`--grouping-file PATH` adds persistence (and implies grouping). The file is
+append-only JSONL, created `0600`, holding two kinds of rows: per-entry history
+(`first_seen`, `last_confirmed`, `hit_count`) and false-positive marks.
+
+```bash
+# 1. Run with memory; the report prints each entry's entry_key.
+dalfox scan https://target.app/p --grouping-file triage.jsonl -f json -o run1.json
+
+# 2. Triage an entry as a false positive.
+dalfox findings mark-fp --grouping-file triage.jsonl \
+  --entry-key 8542bd9bc2cbf99c --note "self-reflection, not executable"
+
+# 3. Re-run: the entry is suppressed but its record stays, and a repeat hit
+#    is counted (false_positive_rehits) rather than reported again.
+dalfox scan https://target.app/p --grouping-file triage.jsonl -f json -o run2.json
+
+# Reconsider: clear the mark (an audit tombstone is kept), entry reports again.
+dalfox findings unmark-fp --grouping-file triage.jsonl --entry-key 8542bd9bc2cbf99c
+```
+
+- A marked entry is suppressed from later reports, never deleted. If it is hit
+  again, the run appends a repeat-hit to its record and reports it in
+  `false_positive_rehits`.
+- The same finding across runs keeps one identity: the entry shows the original
+  `first_seen`, the refreshed `last_confirmed`, and `historical_hit_count` (the
+  number of prior runs that saw it).
+- A missing file is created on first use. A malformed or foreign file, or a newer
+  format version, disables persistence with a warning rather than failing the
+  scan — grouping still works in-memory for that run. A torn final line after a
+  hard kill is skipped, not fatal.
+
+### Known limits
+
+- Grouping is a CLI/report feature. `dalfox server` and the MCP server do not
+  apply `--group-by-injection-point` / `--grouping-file` and ignore their config
+  keys; they continue to return the canonical flat finding array.
+- `--stream-findings` is switched off under grouping (the live streamer can only
+  emit the flat per-finding view), as are a grouped SARIF (falls back to flat).
+- `--limit` still governs the scan-time stop; the grouped report's own summary
+  carries the point/entry totals rather than a flat display slice.
+- Identity normalizes the endpoint and location but does not interpret
+  application semantics: two genuinely different sinks that share an endpoint,
+  location and parameter name share an entry by design.
+- The grouping file cannot reconstruct findings from a pre-grouping flat report
+  (see compatibility below).
+
+### Compatibility with older data
+
+The grouping identity and the grouping file are new in this version, so:
+
+- **Flat reports written by older versions** (the `{meta, findings}` JSON/JSONL
+  shape) are still read normally as baselines — that path is unchanged — but they
+  cannot be turned into a grouped retroactively, because the stable
+  `entry_key`/`group_id` digests are computed from the live finding fields by the
+  new layer. To get grouped history, run the current build once with
+  `--grouping-file`; that first run seeds the file and every later run accrues
+  first-seen / last-confirmed and false-positive memory.
+- **Older grouping files** do not exist; a non-grouping file handed to
+  `--grouping-file` is rejected softly (persistence disabled, in-memory grouping
+  still runs) instead of being misread. The on-disk format carries a version
+  header, so a future incompatible change will reset rather than misinterpret.
+
+### Why this does not reuse `--baseline`
+
+The two features overlap in vocabulary but answer different questions and are
+kept independent so neither overwrites the other's data:
+
+- `--baseline` is a **novelty gate for CI**: it loads a previous *report* into a
+  flat set of fingerprints and either drops or annotates known findings. Its
+  fingerprint deliberately includes the finding **tier** (an `R` promoted to `V`
+  is "new", because that escalation should fail a gate) and the evidence family,
+  and it has no concept of grouping parameters together or of a manual triage
+  state. It also filters findings before the exit-code decision.
+- Grouping is an **organization + verification/triage layer**: it keeps every
+  finding, folds parameters of one surface into a group, attaches a
+  verified/suspected/unverified state from verification actions, and persists
+  operator false-positive marks and timelines. It never changes the exit code and
+  never drops a finding that is not explicitly marked.
+
+They compose: `--baseline` runs first (its diff), then grouping folds the
+survivors. A grouping file is not a baseline and vice versa; neither reads or
+modifies the other.
+
 ## Colour & TTY behaviour
 
 ```bash

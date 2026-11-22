@@ -31,6 +31,7 @@ mod analysis;
 mod args;
 mod baseline;
 mod blind;
+mod grouping;
 mod input;
 mod logging;
 mod output;
@@ -62,6 +63,47 @@ pub use args::{
 pub(crate) use args::{
     MIN_CONFIDENCE_HIGH, parse_base_url_arg, parse_force_waf_arg, parse_http_method_arg,
 };
+
+/// Public triage actions for `dalfox findings …`. A thin, dependency-free
+/// envelope so the binary crate can drive the (private) grouping module without
+/// that module or its persistence types becoming part of the public API.
+#[derive(Debug, Clone)]
+pub enum FindingsTriage {
+    /// Mark an injection-point entry as a false positive.
+    MarkFp {
+        grouping_file: String,
+        entry_key: String,
+        note: Option<String>,
+    },
+    /// Remove a false-positive mark (the audit row is retained).
+    UnmarkFp {
+        grouping_file: String,
+        entry_key: String,
+    },
+}
+
+/// Run a one-shot `dalfox findings` triage action without scanning.
+pub async fn run_findings_triage(action: FindingsTriage) -> ScanOutcome {
+    let internal = match action {
+        FindingsTriage::MarkFp {
+            grouping_file,
+            entry_key,
+            note,
+        } => grouping::FindingsAction::MarkFp {
+            grouping_file,
+            entry_key,
+            note,
+        },
+        FindingsTriage::UnmarkFp {
+            grouping_file,
+            entry_key,
+        } => grouping::FindingsAction::UnmarkFp {
+            grouping_file,
+            entry_key,
+        },
+    };
+    grouping::run_findings_action(internal).await
+}
 pub(crate) use logging::log_info;
 pub(crate) use postprocess::{ast_dedup_parts, dedupe_ast_results_for_model};
 pub(crate) use preflight::finish_waf_detection;
@@ -254,6 +296,10 @@ pub(crate) fn stream_findings_blocker(args: &ScanArgs) -> Option<&'static str> {
         Some("--only-poc")
     } else if args.baseline.is_some() {
         Some("--baseline")
+    } else if args.grouping_enabled() {
+        // The grouped renderer reorganizes findings into groups after the scan;
+        // the live streamer can only emit the flat per-finding view.
+        Some("--group-by-injection-point")
     } else {
         None
     }
@@ -329,6 +375,29 @@ pub async fn run_scan(args: &ScanArgs) -> ScanOutcome {
     }
 
     let baseline = baseline::load_from_args(args);
+
+    // `--grouping-file`: cross-run memory for grouped reports. Loaded up front
+    // (like the baseline) so an unreadable path is reported before any attack
+    // traffic; read failures are soft — grouping still works in-memory for this
+    // run, with persistence disabled and the reason carried into the envelope.
+    let grouping_store = if args.grouping_enabled() {
+        if let Some(path) = &args.grouping_file {
+            let store = grouping::GroupingStore::open(path);
+            if let Some(warning) = &store.warning {
+                eprintln!("Warning: {warning} — grouping history disabled for this run");
+            } else if store.corrupt_lines > 0 {
+                eprintln!(
+                    "Warning: grouping file '{}' skipped {} unparseable line(s)",
+                    path, store.corrupt_lines
+                );
+            }
+            Some(store)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     startup::init_remote_providers(args).await;
     // Resolve targets: input-type detection, file/stdin/raw-HTTP parsing,
@@ -715,6 +784,7 @@ pub async fn run_scan(args: &ScanArgs) -> ScanOutcome {
         requests,
         stream_findings_enabled,
         baseline.as_ref(),
+        grouping_store.as_ref(),
     )
     .await;
 

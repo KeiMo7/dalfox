@@ -1,0 +1,3 @@
+[scan]
+silence = true
+workers = "hunter2-secret"

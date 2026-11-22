@@ -7,6 +7,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 The previous Go implementation lives on the [`v2` branch](https://github.com/hahwul/dalfox/tree/v2)
 and continues to receive security backports per [SECURITY.md](./.github/SECURITY.md).
 
+## Unreleased
+
+* **Grouped findings (`--group-by-injection-point`, CLI only)**: render findings folded into injection-point groups instead of one flat list. Each parameter is an entry with an action-based `verification_status` (`verified` / `suspected` / `unverified`, the last retaining the failed-verification reason); only `verified` counts as high. Identity is a stable digest of normalized endpoint + location + parameter name, with no time or payload, so identical inputs group identically across runs. `--grouping-file PATH` adds append-only JSONL memory for false-positive marks (`dalfox findings mark-fp` / `unmark-fp`) and first-seen / last-confirmed history. Opt-in only; the flat schema, exit codes, scanning and payload logic are unchanged and SARIF falls back to the flat document.
+
 ## 3.3.0
 
 API-spec scanning, blind OOB and session-loss detection on the server / MCP, actionable confidence, new detection classes (CSTI, JS exec sinks, file-upload XSS), and wider DOM-XSS coverage.

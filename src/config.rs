@@ -129,6 +129,13 @@ pub struct ScanConfig {
     pub min_confidence: Option<String>,
     pub tier_model: Option<String>,
     pub fail_on: Option<String>,
+    /// `--group-by-injection-point`: render findings grouped by injection
+    /// point instead of one flat list. CLI only — the server / MCP job model
+    /// returns the canonical flat finding array.
+    pub group_by_injection_point: Option<bool>,
+    /// `--grouping-file`: JSONL persistence for false-positive marks and
+    /// cross-run grouping history. CLI only, like `state_file` / `baseline`.
+    pub grouping_file: Option<String>,
     pub no_color: Option<bool>,
     // TARGETS
     pub param: Option<Vec<String>>,
@@ -329,6 +336,8 @@ impl Config {
             apply_cfg!(opt_clone scan.min_confidence => args.min_confidence);
             apply_cfg!(opt_clone scan.tier_model => args.tier_model);
             apply_cfg!(opt_clone scan.fail_on => args.fail_on);
+            apply_cfg!(flag scan.group_by_injection_point => args.group_by_injection_point);
+            apply_cfg!(opt_clone scan.grouping_file => args.grouping_file);
             apply_cfg!(flag scan.no_color => args.no_color);
             // Map debug conservatively: only set when CLI didn't enable it (global false)
             if let Some(v) = scan.debug
@@ -874,6 +883,8 @@ pub const DEFAULT_TOML_TEMPLATE: &str = r#"# Dalfox configuration (TOML)
 # min_confidence = "low"      # low (keep every finding) or high (drop low-confidence findings before output and exit code)
 # tier_model = "legacy"       # legacy (V/A/R) or confidence (high -> V, low -> R; severity follows tier)
 # fail_on = "any"             # any (exit 1 on any finding) or high (exit 1 only on high-confidence findings; all are still reported)
+# group_by_injection_point = false  # CLI only (not applied by `dalfox server` / MCP); group findings by injection point with per-param verification states
+# grouping_file = "findings.group.jsonl"  # CLI only; JSONL persistence for false-positive marks and first-seen / last-confirmed history across grouped runs
 
 # TARGETS
 # param = ["id", "q:query", "auth:header"]

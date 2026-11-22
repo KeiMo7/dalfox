@@ -1,0 +1,42 @@
+{
+  "findings": [
+    {
+      "confidence": "high",
+      "confidence_reason": "URL-carried source; inline script permitted",
+      "cwe": "CWE-79",
+      "data": "http://127.0.0.1:45989/#%3Cimg%20src=x%20onerror=alert(1)%20class=dlxe5689249%3E",
+      "detection_method": "ast",
+      "evidence": "http://127.0.0.1:45989/:1:1 - DOM-based XSS via location.hash to innerHTML (Source: location.hash, Sink: innerHTML) [script: http://127.0.0.1:45989/app.js]",
+      "inject_type": "DOM-XSS",
+      "message_id": 0,
+      "message_str": "DOM-based XSS via location.hash to innerHTML (needs runtime confirmation) [external JS: http://127.0.0.1:45989/app.js]",
+      "method": "GET",
+      "param": "location.hash",
+      "payload": "#<img src=x onerror=alert(1) class=dlxe5689249>",
+      "severity": "Medium",
+      "type": "A",
+      "type_description": "AST-detected DOM XSS - detection method label, pending migration to the confidence axis"
+    }
+  ],
+  "meta": {
+    "dalfox_version": "3.3.0",
+    "dedup_mode": "exact",
+    "failed_requests": 0,
+    "findings_count": 1,
+    "incomplete": false,
+    "scan_duration_ms": 5,
+    "target_summary": [
+      {
+        "findings_count": 1,
+        "method": "GET",
+        "status": "findings",
+        "target": "http://127.0.0.1:45989/"
+      }
+    ],
+    "targets": [
+      "http://127.0.0.1:45989/"
+    ],
+    "targets_deduplicated": 0,
+    "total_requests": 3
+  }
+}

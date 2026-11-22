@@ -176,6 +176,26 @@ impl fmt::Display for Confidence {
 /// Per-character filter verdict; defined next to the probe that measures it.
 pub use crate::parameter_analysis::FilterFingerprint;
 
+/// A verification action that was attempted for a parameter and could not
+/// complete because the request itself failed.
+///
+/// This is the evidence behind the grouping layer's `unverified` state
+/// (`--group-by-injection-point`). It is recorded only while that flag is on,
+/// and it is **never serialized**: the existing finding schema is unchanged, so
+/// reports produced with the flag off are byte-for-byte the same as before.
+///
+/// `status == 0` means no HTTP response was received at all (connection reset,
+/// refused, timed out after the retry budget). A response that answered but
+/// could not prove an executable position is *not* a failure — that is an
+/// ordinary `Suspected` reflection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VerifyFailure {
+    /// Operator-facing reason, derived from the transport outcome.
+    pub reason: String,
+    /// HTTP status of the failed attempt, or 0 when no response arrived.
+    pub status: u16,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Result {
     #[serde(rename = "type")]
@@ -272,6 +292,13 @@ pub struct Result {
     /// HPP, stored-XSS and OOB findings, and when the probe gave no verdict.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<FilterFingerprint>,
+    /// A verification request attempted for this parameter that failed before
+    /// answering. Consumed only by the opt-in `--group-by-injection-point`
+    /// layer to label the entry `unverified` with the reason retained.
+    /// Internal trace — never serialized, and only populated when the grouping
+    /// flag is on, so the default scan path neither stores nor emits it.
+    #[serde(skip)]
+    pub verify_failure: Option<VerifyFailure>,
 }
 
 /// Stamp `origin_target` (a target's `state_key`) on findings that don't
@@ -461,6 +488,7 @@ impl Result {
                 request: None,
                 response: None,
                 filter: None,
+                verify_failure: None,
             },
         }
     }

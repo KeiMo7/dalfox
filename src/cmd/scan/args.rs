@@ -498,6 +498,28 @@ pub struct ScanArgs {
     #[arg(long, value_name = "LEVEL", value_parser = clap::builder::PossibleValuesParser::new(FAIL_ON_VALUES.iter().copied()))]
     pub fail_on: Option<String>,
 
+    #[clap(help_heading = "OUTPUT")]
+    /// Group findings by injection point instead of printing one flat list
+    ///
+    /// Hits on different parameters of the same endpoint+location surface are
+    /// folded into one group, with each parameter listed as an entry carrying a
+    /// verification state (verified / suspected / unverified). False positives
+    /// and cross-run history are only available when --grouping-file is set.
+    /// The flat finding schema and exit codes are unchanged; this only changes
+    /// how the same findings are organized.
+    #[arg(long = "group-by-injection-point")]
+    pub group_by_injection_point: bool,
+
+    #[clap(help_heading = "OUTPUT")]
+    /// JSONL file backing grouped reports: persists false-positive marks and
+    /// first-seen / last-confirmed history across runs
+    ///
+    /// Implies --group-by-injection-point. Mark or clear a false positive with
+    /// `dalfox findings mark-fp` / `unmark-fp`. Marked entries are suppressed
+    /// from later reports but their records (including repeat hits) are kept.
+    #[arg(long = "grouping-file", value_name = "PATH")]
+    pub grouping_file: Option<String>,
+
     #[clap(help_heading = "TARGETS")]
     /// Parameter to test, as name or name:type (repeatable). Types: query, body,
     /// json, multipart, cookie, header, graphql, xml, path, fragment
@@ -961,6 +983,8 @@ impl Default for ScanArgs {
             min_confidence: None,
             tier_model: None,
             fail_on: None,
+            group_by_injection_point: false,
+            grouping_file: None,
             param: vec![],
             data: None,
             headers: vec![],
@@ -1120,6 +1144,13 @@ impl ScanArgs {
         self.baseline_mode_arg
             .as_deref()
             .unwrap_or(BASELINE_MODE_FILTER)
+    }
+
+    /// Whether grouped output is in effect: the explicit flag, or a
+    /// `--grouping-file` (the file implies grouping so a state-backed run can
+    /// never silently fall back to a flat report).
+    pub(crate) fn grouping_enabled(&self) -> bool {
+        self.group_by_injection_point || self.grouping_file.is_some()
     }
 
     pub(crate) fn matches_only_poc(&self, r: &crate::scanning::result::Result) -> bool {

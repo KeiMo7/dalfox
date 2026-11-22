@@ -1081,3 +1081,29 @@ fn sxss_url_accepts_a_string_or_a_list() {
     .unwrap();
     assert_eq!(many.scan.unwrap().sxss_url.map(|v| v.len()), Some(2));
 }
+
+
+#[test]
+fn grouping_flags_round_trip_through_config() {
+    // TOML parse recognizes both keys (no unknown-key warning) and overlays
+    // them onto a default ScanArgs.
+    let (cfg, unknown) = parse_config(
+        "[scan]\ngroup_by_injection_point = true\ngrouping_file = \"triage.jsonl\"\n",
+        false,
+    )
+    .unwrap();
+    assert!(unknown.is_empty(), "grouping keys must be known: {unknown:?}");
+    let scan = cfg.scan.unwrap();
+    assert_eq!(scan.group_by_injection_point, Some(true));
+    assert_eq!(scan.grouping_file.as_deref(), Some("triage.jsonl"));
+
+    let mut args = default_scan_args();
+    Config {
+        scan: Some(scan),
+    }
+    .apply_to_scan_args_if_default(&mut args);
+    assert!(args.group_by_injection_point);
+    assert_eq!(args.grouping_file.as_deref(), Some("triage.jsonl"));
+    // grouping_file implies grouping at the accessor level.
+    assert!(args.grouping_enabled());
+}

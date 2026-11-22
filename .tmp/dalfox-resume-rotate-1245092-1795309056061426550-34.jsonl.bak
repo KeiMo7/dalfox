@@ -1,0 +1,2 @@
+{"dalfox_state":2,"version":"3.3.0","config_hash":"d14b7072d9c62aaf","created":"2026-11-22T08:57:36.062372502+08:00"}
+{"target":"http://127.0.0.1:44755/a?q=1","method":"GET","request_hash":"452a7f1373531d98974ae844c681fc1020ae53af08dc36bf189c29db9a65d1f7","outcome":"completed","at":"2026-11-22T08:57:36.079603070+08:00"}

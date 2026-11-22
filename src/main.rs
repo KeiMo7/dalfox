@@ -68,6 +68,11 @@ enum Commands {
     Payload(cmd::payload::PayloadArgs),
     /// Run the MCP (Model Context Protocol) stdio server
     Mcp,
+    /// Manage triage memory for grouped scans (false-positive marks)
+    Findings {
+        #[command(subcommand)]
+        action: FindingsAction,
+    },
     /// Generate shell completion scripts
     Completion {
         /// Shell to generate completions for
@@ -83,6 +88,32 @@ enum Commands {
     File(cmd::compat::FileArgs),
     #[clap(hide = true)]
     Pipe(cmd::compat::PipeArgs),
+}
+
+/// `dalfox findings …`: mutate the JSONL grouping file without running a scan.
+#[derive(clap::Subcommand)]
+enum FindingsAction {
+    /// Mark an injection-point entry as a false positive (suppressed on later scans)
+    MarkFp {
+        /// Grouping file written by --grouping-file
+        #[arg(long = "grouping-file", value_name = "PATH")]
+        grouping_file: String,
+        /// The entry_key printed in a grouped report's entries
+        #[arg(long = "entry-key", value_name = "ID")]
+        entry_key: String,
+        /// Optional operator note stored alongside the mark
+        #[arg(long, value_name = "NOTE")]
+        note: Option<String>,
+    },
+    /// Clear a false-positive mark so the entry is reported again
+    UnmarkFp {
+        /// Grouping file written by --grouping-file
+        #[arg(long = "grouping-file", value_name = "PATH")]
+        grouping_file: String,
+        /// The entry_key printed in a grouped report's entries
+        #[arg(long = "entry-key", value_name = "ID")]
+        entry_key: String,
+    },
 }
 
 /// Hand a fully rendered artifact (man page, completion script) to stdout.
@@ -303,6 +334,10 @@ async fn main() {
     // document format (see `format_is_machine` — everything but `plain`) to
     // keep stdout parseable.
     let is_mcp = matches!(cli.command, Some(Commands::Mcp));
+    // `dalfox findings …` is a one-shot file-management command whose stdout
+    // carries a single machine-parseable status line; the banner would corrupt
+    // it, so suppress the banner exactly as for MCP.
+    let is_findings_cmd = matches!(cli.command, Some(Commands::Findings { .. }));
     // Suppress banner for `payload` whenever its stdout is meant to be parsed:
     // a selector emits one-line-per-item output users pipe into grep/jq, and
     // `--json` emits a document. The argless *prose* summary stays
@@ -465,6 +500,7 @@ async fn main() {
         dalfox::NO_COLOR.store(true, std::sync::atomic::Ordering::Relaxed);
     }
     if !is_mcp
+        && !is_findings_cmd
         && !is_machine_format
         && !config_machine_format
         && !effective_silence
@@ -514,6 +550,27 @@ async fn main() {
             })
         }
         Some(Commands::Payload(args)) => cmd::payload::run_payload(args).await,
+        Some(Commands::Findings { action }) => {
+            let internal = match action {
+                FindingsAction::MarkFp {
+                    grouping_file,
+                    entry_key,
+                    note,
+                } => cmd::scan::FindingsTriage::MarkFp {
+                    grouping_file,
+                    entry_key,
+                    note,
+                },
+                FindingsAction::UnmarkFp {
+                    grouping_file,
+                    entry_key,
+                } => cmd::scan::FindingsTriage::UnmarkFp {
+                    grouping_file,
+                    entry_key,
+                },
+            };
+            cmd::scan::run_findings_triage(internal).await
+        }
         // `man` and `completion` are handled immediately after parsing, so
         // this arm exists only for match exhaustiveness.
         Some(Commands::Completion { .. } | Commands::Man) => unreachable!(),

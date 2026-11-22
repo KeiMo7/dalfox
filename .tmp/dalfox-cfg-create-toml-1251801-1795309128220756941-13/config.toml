@@ -1,0 +1,119 @@
+# Dalfox configuration (TOML)
+# Docs: https://github.com/hahwul/dalfox
+# Predefine most flags here. CLI flags can override these at runtime.
+
+[scan]
+# INPUT
+# input_type = "auto"        # auto, url, file, pipe, raw-http (parses raw HTTP request file or literal), har (HAR / proxy export), openapi (OpenAPI 3.x / Swagger 2.0 JSON or YAML), postman (Postman collection v2.1)
+# base_url = "https://staging.example.com"  # openapi/postman: scheme+host(+port) for every request, path prefix; the spec server path is appended
+# dedup_urls = "exact"       # exact (drop identical URL+method+request content), signature (also collapse URLs differing only in param values), off
+# state_file = "scan.state"  # CLI only (not applied by `dalfox server` / MCP); record completed targets and skip them when the scan is re-run
+
+# OUTPUT
+# format = "plain"           # plain, json, jsonl, markdown, sarif, toml
+# output = "output.txt"
+# include_request = false
+# include_response = false
+# include_all = false          # shorthand for include_request + include_response
+# silence = false
+# no_color = false           # disable colored output (also honors the NO_COLOR env var)
+# dry_run = false            # parse targets + run discovery, report what would be scanned, send no payloads
+# debug = false              # enable debug logging (DBG lines)
+# stream_findings = false    # emit findings mid-scan instead of after `WRN XSS found N XSS` (plain format only)
+# poc_type = "plain"         # plain, curl, httpie, http-request
+# limit = 100
+# limit_result_type = "all"  # which finding types count toward `limit`: all, v (vulnerable), r (reflected), a (AST DOM XSS), i (informational)
+# only_poc = ["v", "r"]      # show only these finding types: v (vulnerable), r (reflected), a (AST DOM XSS), i (informational)
+# baseline = "baseline.json"  # CLI only (not applied by `dalfox server` / MCP); prior JSON/JSONL report, report only findings new since it
+# baseline_mode = "filter"    # filter (drop known findings) or annotate (keep them, mark each `new`)
+# min_confidence = "low"      # low (keep every finding) or high (drop low-confidence findings before output and exit code)
+# tier_model = "legacy"       # legacy (V/A/R) or confidence (high -> V, low -> R; severity follows tier)
+# fail_on = "any"             # any (exit 1 on any finding) or high (exit 1 only on high-confidence findings; all are still reported)
+# group_by_injection_point = false  # CLI only (not applied by `dalfox server` / MCP); group findings by injection point with per-param verification states
+# grouping_file = "findings.group.jsonl"  # CLI only; JSONL persistence for false-positive marks and first-seen / last-confirmed history across grouped runs
+
+# TARGETS
+# param = ["id", "q:query", "auth:header"]
+# data = "param=value"
+# headers = ["X-Header: value", "Authorization: Bearer ..."]
+# cookies = ["a=1", "b=2"]
+# method = "GET"
+# user_agent = "Dalfox/3"
+# cookie_from_raw = "request.txt"
+
+# SESSION (mid-scan session-loss detection; auto-enabled when credentials are supplied)
+# session_check = "Sign out"          # regex that must keep matching an authenticated response
+# session_check_url = "https://app.example.com/api/me"
+# on_session_loss = "abort"           # abort, continue
+
+# SCOPE
+# include_url = []
+# exclude_url = []
+# ignore_param = ["utm_source", "csrf_token"]  # skip these parameters during scanning
+# out_of_scope = ["*.cdn.example.com"]         # exclude targets whose domain matches these patterns (supports wildcards)
+# out_of_scope_file = "out-of-scope.txt"       # load out-of-scope domain patterns from a file (one per line)
+
+# PARAMETER DISCOVERY
+# only_discovery = false          # only run parameter discovery, then stop (skip XSS scanning)
+# skip_discovery = false
+# skip_reflection_header = false
+# skip_reflection_cookie = false
+# skip_reflection_path = false
+
+# PARAMETER MINING
+# mining_dict_word = "wordlist.txt"
+# remote_wordlists = ["burp", "assetnote"]
+# skip_mining = false
+# skip_mining_dict = false
+# skip_mining_dom = false
+
+# NETWORK
+# timeout = 10               # seconds (applies to HTTP requests and remote provider fetches)
+# scan_timeout = 0           # hard wall-clock cap per target for the scan stage in seconds
+# delay = 0                  # milliseconds
+# rate_limit = 0             # cap outbound requests/sec (0 = unlimited); also eases off under WAF thresholds
+# retries = 0                # retry failed requests on HTTP 5xx / transient transport errors (0 = off; 429 always retried)
+# retry_delay = 1000         # base delay (ms) for the exponential backoff between retries
+# proxy = "http://127.0.0.1:8080"  # also used for remote provider fetches
+# insecure = true            # skip TLS certificate verification (default true); set false to enforce validation
+# follow_redirects = false
+# ignore_return = [302, 403, 404]  # ignore responses carrying these HTTP status codes
+
+# ENGINE
+# workers = 50
+# max_concurrent_targets = 50
+# max_targets_per_host = 100
+
+# XSS SCANNING
+# encoders = ["url", "html"]  # none, url, 2url, 3url, 4url, html, htmlpad, base64, unicode, zwsp
+# remote_payloads = ["payloadbox", "portswigger"]
+# custom_blind_xss_payload = "blind.txt"
+# blind_callback_url = "https://your-bxss-callback.com"
+# blind_oob = ["oast.fun", "oast.me"]   # OOB/OAST via interactsh; [] = default public servers
+# blind_oob_secret = "token"            # auth token for a self-hosted interactsh server
+# blind_oob_wait = 30                   # seconds to keep polling for callbacks after the scan
+# custom_payload = "payloads.txt"
+# only_custom_payload = false
+# custom_alert_value = "1"    # value used inside alert()/prompt()/confirm() in generated payloads
+# custom_alert_type = "none"  # alert value handling: none (keep original), str (wrap value in quotes)
+# inject_marker = "FUZZ"      # replace this marker in URL/headers/body with payloads instead of auto-injecting
+# skip_xss_scanning = false
+# max_payloads_per_param = 0  # cap payloads per param (0 = built-in safety cap of 3000 per set, unless deep_scan)
+# deep_scan = false
+# sxss = false
+# sxss_url = ["https://target/echo"]  # one URL, or a list of pages to check
+# sxss_method = "GET"
+# sxss_retries = 3
+# skip_ast_analysis = false
+# analyze_external_js = false
+# detect_outdated_libs = false
+
+# HPP
+# hpp = false                 # test HTTP Parameter Pollution
+
+# WAF
+# waf_bypass = "auto"         # auto, force, off
+# skip_waf_probe = false
+# force_waf = "cloudflare"    # treat the target as this WAF (replaces the detection result)
+# waf_evasion = false
+# waf_min_confidence = 0.3    # 0.0..=1.0 floor for WAF fingerprint confidence

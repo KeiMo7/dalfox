@@ -398,6 +398,201 @@ pub(super) fn plain_findings_summary(display_results: &[Result]) -> String {
     }
 }
 
+/// Render the grouped report used by `--group-by-injection-point`.
+///
+/// Builds the same [`ScanMetadata`] envelope as the flat path, then folds the
+/// post-baseline findings into injection-point groups and dispatches to a
+/// grouped renderer. SARIF has no group schema, so it falls back to the flat
+/// SARIF renderer with a stderr warning (the data is still emitted, just not
+/// grouped). The returned tuple keeps the flat finding list and the write-fail
+/// flag so [`derive_outcome`] and the state-file deferral logic work unchanged.
+#[allow(clippy::too_many_arguments)]
+async fn render_grouped(
+    args: &ScanArgs,
+    state: &ScanState,
+    all_targets: &[TargetRef],
+    scan_elapsed: std::time::Duration,
+    requests: RequestTally,
+    baseline_meta: Option<serde_json::Value>,
+    final_results: &[Result],
+    grouping_store: Option<&super::grouping::GroupingStore>,
+) -> (Vec<Result>, bool) {
+    use super::grouping;
+
+    let grouped = grouping::aggregate(final_results.to_vec(), grouping_store);
+
+    // Per-target summary uses the same attribution rules as the flat path:
+    // stamped findings by origin, unstamped ones through the URL heuristic.
+    let target_summary: Vec<serde_json::Value> = {
+        let skipped = state.skipped_targets.lock().await;
+        let session_lost = state.session_lost.lock().await;
+        let interrupted = state.interrupted_targets.lock().await;
+        let all_findings: Vec<&Result> = grouped
+            .groups
+            .iter()
+            .flat_map(|g| g.entries.iter().flat_map(|e| e.findings.iter()))
+            .chain(grouped.informational.iter())
+            .collect();
+        let (stamped, unstamped): (Vec<&&Result>, Vec<&&Result>) =
+            all_findings.iter().partition(|r| r.origin_target.is_some());
+        let mut by_origin: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for r in stamped {
+            *by_origin
+                .entry(r.origin_target.as_deref().unwrap_or_default())
+                .or_default() += 1;
+        }
+        let attribution =
+            crate::utils::FindingAttributionIndex::new(unstamped.iter().map(|r| r.data.as_str()));
+        let mut summary = Vec::with_capacity(all_targets.len());
+        for TargetRef { key, url, method } in all_targets {
+            let finding_count =
+                by_origin.get(key.as_str()).copied().unwrap_or(0) + attribution.count_for(url);
+            let (status, error_code) = if let Some(code) = skipped.get(key) {
+                ("skipped", Some(*code))
+            } else if session_lost.contains_key(key) {
+                ("incomplete", Some(crate::cmd::error_codes::SESSION_LOST))
+            } else if finding_count > 0 {
+                ("findings", interrupted.get(key).copied().flatten())
+            } else if let Some(code) = interrupted.get(key) {
+                ("incomplete", *code)
+            } else {
+                ("clean", None)
+            };
+            let mut entry = serde_json::json!({
+                "target": url,
+                "method": method,
+                "status": status,
+                "findings_count": finding_count,
+            });
+            if let Some(code) = error_code {
+                entry["error_code"] = serde_json::json!(code);
+            }
+            if let Some(reason) = session_lost.get(key) {
+                entry["error_message"] = serde_json::json!(reason);
+            }
+            summary.push(entry);
+        }
+        summary
+    };
+
+    let session_died = target_summary
+        .iter()
+        .any(|t| t["error_code"] == crate::cmd::error_codes::SESSION_LOST);
+    let scan_incomplete =
+        session_died || requests.is_incomplete() || !state.interrupted_targets.lock().await.is_empty();
+
+    let scan_meta = crate::scanning::result::ScanMetadata {
+        dalfox_version: env!("CARGO_PKG_VERSION").to_string(),
+        targets: if args.targets.is_empty() {
+            vec!["-".to_string()]
+        } else {
+            args.targets.clone()
+        },
+        scan_duration_ms: scan_elapsed.as_millis() as u64,
+        total_requests: requests.sent,
+        failed_requests: requests.failed,
+        // The envelope's finding total stays the count of findings the report
+        // carries; the grouping block separately reports point/entry totals.
+        findings_count: grouped.reported_finding_count(),
+        target_summary,
+        dedup_mode: state.dedup.mode.to_string(),
+        targets_deduplicated: state.dedup.collapsed,
+        targets_unparsable: state.unparsable_lines,
+        baseline: baseline_meta,
+        resumed: state.state_file.as_ref().map(|sf| {
+            serde_json::json!({
+                "state_file": sf.path(),
+                "targets_skipped_completed": state.resumed_skipped,
+            })
+        }),
+        incomplete: scan_incomplete,
+        min_confidence: None,
+        fail_on: None,
+        ast_skipped: None,
+    };
+
+    // SARIF has no group concept: emit the flat document rather than an invalid
+    // SARIF, and say so on stderr (stdout stays a clean artifact).
+    let output_content = if args.format == "sarif" {
+        eprintln!(
+            "Warning: --group-by-injection-point has no SARIF representation; emitting flat SARIF. Use json/jsonl/markdown/toml/plain for grouped output."
+        );
+        crate::scanning::result::Result::results_to_sarif_with_meta(
+            final_results,
+            args.include_request,
+            args.include_response,
+            Some(&scan_meta),
+        )
+    } else {
+        match args.format.as_str() {
+            "json" => grouping::grouped_json_envelope(
+                &grouped,
+                &scan_meta,
+                args.include_request,
+                args.include_response,
+                grouping_store,
+            ),
+            "jsonl" => grouping::render_grouped_jsonl(
+                &grouped,
+                &scan_meta,
+                args.include_request,
+                args.include_response,
+                grouping_store,
+            ),
+            "markdown" => grouping::grouped_markdown(&grouped, &scan_meta, grouping_store),
+            "toml" => grouping::grouped_toml(
+                &grouped,
+                &scan_meta,
+                args.include_request,
+                args.include_response,
+                grouping_store,
+            ),
+            // plain and anything else
+            _ => {
+                log_warn(
+                    args,
+                    &format!(
+                        "Grouped: {} injection point(s), {} parameter entr(y/ies), {} verified",
+                        grouped.injection_point_count(),
+                        grouped.param_entry_count(),
+                        grouped.verified_entry_count()
+                    ),
+                );
+                grouping::grouped_plain(&grouped)
+            }
+        }
+    };
+
+    let output_write_failed = write_output_or_stdout(args, &output_content);
+
+    // Persist cross-run history only after the report is safely written, so a
+    // kill in between leaves the entry to be re-recorded rather than claiming a
+    // report that never landed. Best-effort: a failed append is warned, not
+    // fatal, and never truncates the existing file.
+    if !output_write_failed
+        && let Some(store) = grouping_store
+        && store.is_active()
+    {
+        let mut write_warned = false;
+        for g in &grouped.groups {
+            for e in &g.entries {
+                for f in &e.findings {
+                    if !store.record_observation(f, &g.group_id, &g.endpoint) && !write_warned {
+                        eprintln!(
+                            "Warning: could not append grouping history to '{}'; the report is complete but cross-run memory was not updated",
+                            store.path()
+                        );
+                        write_warned = true;
+                    }
+                }
+            }
+        }
+    }
+
+    (final_results.to_vec(), output_write_failed)
+}
+
+
 /// Apply `--baseline` to the deduped findings and return the `meta.baseline`
 /// block describing what it did.
 ///
@@ -569,6 +764,10 @@ pub(crate) fn stream_key(result: &Result) -> String {
     )
 }
 
+/// The grouped store joins the existing baseline as a render-time dependency;
+/// both are optional post-processing inputs, so the parameter count grows with
+/// the pipeline rather than being hidden behind a grab-bag struct.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn render_results(
     args: &ScanArgs,
     state: &ScanState,
@@ -577,6 +776,7 @@ pub(crate) async fn render_results(
     requests: RequestTally,
     stream_findings_enabled: bool,
     baseline: Option<&Baseline>,
+    grouping_store: Option<&super::grouping::GroupingStore>,
 ) -> (Vec<Result>, bool) {
     let results = state.results.clone();
     let skipped_targets = state.skipped_targets.clone();
@@ -631,6 +831,26 @@ pub(crate) async fn render_results(
     // target's count, or decide the exit code: the whole point is that the run
     // describes what is new.
     let baseline_meta = apply_baseline(&mut final_results, baseline);
+
+    // `--group-by-injection-point`: fold the flat list into injection-point
+    // groups and render through the grouped renderers, bypassing the flat
+    // `--limit` display slice (a group report's own summary carries the
+    // totals; `--limit` still governed the scan-time stop upstream). The
+    // returned vector keeps the full post-baseline finding list so the exit
+    // code and any later consumer see the same findings as a flat run.
+    if args.grouping_enabled() {
+        return render_grouped(
+            args,
+            state,
+            all_targets,
+            scan_elapsed,
+            requests,
+            baseline_meta,
+            &final_results,
+            grouping_store,
+        )
+        .await;
+    }
 
     // Truncate the displayed findings to `--limit`. `--limit-result-type`
     // makes the scan-time stop condition count ONLY findings of that type

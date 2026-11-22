@@ -47,6 +47,8 @@ All flags are defined in `src/cmd/scan/args.rs:ScanArgs`. Defaults are centraliz
 | `--fail-on` | `any` | `high` exits `1` only on a reported `high`-graded finding; every finding is still reported, and nothing below `high` (`R`, `I`, a `low` `V`/AST flow) fails the run. Exit code only (CLI; not REST/MCP) |
 | `--baseline PATH` | — | Diff against a previous dalfox JSON/JSONL report; only findings new since it are reported. An ordinary `-f json -o` report is the baseline |
 | `--baseline-mode` | `filter` | `filter` drops known findings (counts + exit code describe only what is new), `annotate` keeps them and adds `new: true`/`new: false` to each |
+| `--group-by-injection-point` | false | Fold findings into injection-point groups; each parameter is an entry with a `verified` / `suspected` / `unverified` state, and only `verified` is high. Flat schema + exit codes unchanged; SARIF falls back to flat with a warning. CLI only |
+| `--grouping-file PATH` | — | JSONL memory for grouped runs (false-positive marks + first-seen/last-confirmed history); implies grouping. Manage marks with `dalfox findings mark-fp` / `unmark-fp --grouping-file PATH --entry-key ID`. CLI only |
 | `-S, --silence` | false | Suppress everything except POC lines |
 | `--no-color` | (auto) | Also respects `NO_COLOR` env var |
 

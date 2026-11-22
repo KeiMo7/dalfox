@@ -516,6 +516,12 @@ struct ParamScanState {
     /// Bounded by the DOM payload set, and a verified entry's body is trimmed
     /// to the evidence bound.
     dom_reuse: HashMap<String, crate::scanning::check_dom_verification::DomVerifyEvidenceOutcome>,
+    /// Verification action that failed on the wire for this parameter, recorded
+    /// only while `--group-by-injection-point` is on. Consumed at flush time to
+    /// label the parameter's reflection finding `unverified` with the reason.
+    /// `None` means "no verification request failed" — distinct from "no
+    /// verification was attempted", which stays `suspected`.
+    verify_failure: Option<crate::scanning::result::VerifyFailure>,
 }
 
 /// Grow speculative batches gradually: early catalog hits should not cost a
@@ -584,7 +590,7 @@ impl ScanWorkerCtx {
     /// the batching is left alone.
     async fn limit_reached_in_phase(&self, state: &mut ParamScanState) -> bool {
         if self.args.limit.is_some() {
-            self.flush_results(&mut state.local_results).await;
+            self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
         }
         self.limit_reached()
     }
@@ -701,12 +707,30 @@ impl ScanWorkerCtx {
     /// Flush locally-batched findings into the shared results vector with a
     /// single lock acquisition, bumping `findings_count` by the number that
     /// match `--limit-result-type`.
-    async fn flush_results(&self, local_results: &mut Vec<crate::scanning::result::Result>) {
+    ///
+    /// `verify_failure` is the per-parameter trace from [`ParamScanState`]:
+    /// when a DOM verification request failed, it is stamped onto the
+    /// parameter's non-verified findings so the grouping layer labels the entry
+    /// `unverified` with the reason retained.
+    async fn flush_results(
+        &self,
+        local_results: &mut Vec<crate::scanning::result::Result>,
+        verify_failure: Option<&crate::scanning::result::VerifyFailure>,
+    ) {
         if local_results.is_empty() {
             return;
         }
         let mut batch = std::mem::take(local_results);
         crate::scanning::result::stamp_origin(&mut batch, &self.target.state_key());
+        if let Some(failure) = verify_failure {
+            for r in batch.iter_mut() {
+                if r.verify_failure.is_none()
+                    && r.result_type != crate::scanning::result::FindingType::Verified
+                {
+                    r.verify_failure = Some(failure.clone());
+                }
+            }
+        }
         accumulate_findings(&self.results, &self.findings_count, batch, &self.args).await;
     }
 
@@ -756,7 +780,7 @@ impl ScanWorkerCtx {
         // If probe found no reflection and not in deep_scan, skip heavy
         // payload loops for this param.
         if !probe_reflected && !self.args.deep_scan && param.xml_namespace_candidate.is_none() {
-            self.flush_results(&mut state.local_results).await;
+            self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
             return;
         }
 
@@ -809,7 +833,7 @@ impl ScanWorkerCtx {
                         "sxss store-probe (param={}): injection did not raise the marker count above the baseline — field does not store here, skipping the payload catalog",
                         param.name
                     );
-                    self.flush_results(&mut state.local_results).await;
+                    self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
                     return;
                 }
                 // Only skip the per-payload retrieval retries when the store was
@@ -847,7 +871,7 @@ impl ScanWorkerCtx {
                     )
                     .await
                 {
-                    self.flush_results(&mut state.local_results).await;
+                    self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
                     return;
                 }
                 // Stage 5b (#1520): client-side template injection fallback —
@@ -857,12 +881,12 @@ impl ScanWorkerCtx {
                 self.run_csti_phase(&param, &mut state, &waf_streak).await;
                 if let PhaseFlow::Abort = self.run_dom_phase(&param, dom_payloads, &mut state).await
                 {
-                    self.flush_results(&mut state.local_results).await;
+                    self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
                     return;
                 }
                 self.run_hpp_phase(&param, hpp_payloads, &mut state).await;
 
-                self.flush_results(&mut state.local_results).await;
+                self.flush_results(&mut state.local_results, state.verify_failure.as_ref()).await;
             };
 
             // Under `--sxss` with a *synchronous* sink, disable the per-payload
@@ -1793,10 +1817,30 @@ impl ScanWorkerCtx {
                 // Issue #1156 — accumulate the recall-preserving early-exit
                 // signals for this response, then stop the phase once the
                 // endpoint has shown overwhelming evidence it will never verify.
-                // Only non-verifying responses feed the signals: a `dom_verified`
-                // response that did not record above (another worker got there
-                // first, `should_add == false`) must not be miscounted.
+                // Only non-verifying responses feed the signals: a
+                // `dom_verified` response that did not record above (another
+                // worker got there first, `should_add == false`) must not be
+                // miscounted.
                 if !dom_verified {
+                    // Grouping trace: a verification request that never answered
+                    // (status 0 after the retry budget) is an *unverified*
+                    // finding, never a clean miss. Recorded once per parameter
+                    // and only while grouped output is on; the default scan path
+                    // pays no storage for it. A response that answered but could
+                    // not prove an executable position keeps its ordinary
+                    // `suspected` meaning and is not recorded here.
+                    if status == 0
+                        && self.args.grouping_enabled()
+                        && state.verify_failure.is_none()
+                    {
+                        state.verify_failure =
+                            Some(crate::scanning::result::VerifyFailure {
+                                reason:
+                                    "verification request failed: no response after retries (connection reset, refused, or timeout)"
+                                        .to_string(),
+                                status: 0,
+                            });
+                    }
                     inert_echo_count = next_inert_echo_count(inert_echo_count, reflected);
                     // The strict, byte-exact signal — not the widened
                     // `reflected` that also counts escaped echoes. See

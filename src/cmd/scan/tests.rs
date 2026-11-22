@@ -1608,6 +1608,7 @@ async fn render_results_to_file(
         },
         false,
         None,
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&path).expect("output file written");
@@ -1634,6 +1635,7 @@ async fn render_results_to_file_with_tally(
         std::time::Duration::from_millis(7),
         requests,
         false,
+        None,
         None,
     )
     .await;
@@ -1691,6 +1693,7 @@ async fn a_transport_incomplete_empty_scan_does_not_exit_clean() {
         std::time::Duration::from_millis(7),
         requests,
         false,
+        None,
         None,
     )
     .await;
@@ -1924,6 +1927,7 @@ async fn test_render_results_stopped_early_targets_are_not_clean() {
         },
         false,
         None,
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&path).expect("output file written");
@@ -1978,6 +1982,7 @@ async fn test_parameter_cap_marks_empty_scan_incomplete() {
         std::time::Duration::from_millis(1),
         crate::cmd::scan::output::RequestTally::default(),
         false,
+        None,
         None,
     )
     .await;
@@ -2131,6 +2136,7 @@ async fn test_target_summary_keeps_methods_on_one_url_apart() {
         crate::cmd::scan::output::RequestTally { sent: 1, failed: 0 },
         false,
         None,
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&path).expect("output file written");
@@ -2216,6 +2222,7 @@ async fn test_render_results_target_summary_scales_with_many_targets_and_finding
         std::time::Duration::from_millis(7),
         crate::cmd::scan::output::RequestTally { sent: 1, failed: 0 },
         false,
+        None,
         None,
     )
     .await;
@@ -2499,6 +2506,7 @@ async fn test_render_results_baseline_filter_suppresses_known_findings() {
         },
         false,
         Some(&bl),
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&out_path).expect("output written");
@@ -2545,6 +2553,7 @@ async fn test_render_results_baseline_annotate_marks_every_finding() {
         },
         false,
         Some(&bl),
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&out_path).expect("output written");
@@ -2585,6 +2594,7 @@ async fn test_render_results_baseline_meta_survives_toml_and_markdown() {
             },
             false,
             Some(&bl),
+        None,
         )
         .await;
         let content = std::fs::read_to_string(&out_path).expect("output written");
@@ -2629,6 +2639,7 @@ async fn test_render_results_baseline_counts_match_the_only_poc_filtered_set() {
         },
         false,
         Some(&bl),
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&out_path).expect("output written");
@@ -2664,6 +2675,7 @@ async fn test_render_results_disabled_baseline_reports_itself() {
         },
         false,
         Some(&bl),
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&out_path).expect("output written");
@@ -2797,6 +2809,7 @@ async fn test_render_results_includes_waf_summary() {
         crate::cmd::scan::output::RequestTally { sent: 3, failed: 0 },
         false,
         None,
+        None,
     )
     .await;
     let content = std::fs::read_to_string(&path).expect("output written");
@@ -2828,6 +2841,7 @@ async fn test_render_results_stdout_path_returns_results() {
         crate::cmd::scan::output::RequestTally { sent: 1, failed: 0 },
         true, // stream_findings_enabled → skip per-finding re-render
         None,
+        None,
     )
     .await;
     assert_eq!(final_results.len(), 1);
@@ -2856,6 +2870,7 @@ async fn test_render_results_reports_output_write_failure() {
         std::time::Duration::from_millis(1),
         crate::cmd::scan::output::RequestTally { sent: 1, failed: 0 },
         true,
+        None,
         None,
     )
     .await;
@@ -4579,6 +4594,7 @@ async fn render_and_exit(
         requests,
         false,
         None,
+        None,
     )
     .await;
     let outcome = super::output::derive_outcome(
@@ -5188,6 +5204,7 @@ async fn ast_skipped_scripts_surface_in_the_meta_envelope() {
         std::time::Duration::from_millis(7),
         requests,
         false,
+        None,
         None,
     )
     .await;

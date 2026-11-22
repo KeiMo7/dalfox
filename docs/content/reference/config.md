@@ -46,6 +46,8 @@ baseline_mode = "filter"
 min_confidence = "low"
 fail_on = "any"
 tier_model = "legacy"
+# group_by_injection_point = false
+# grouping_file = "findings.group.jsonl"
 no_color = false
 
 # TARGETS
@@ -168,6 +170,8 @@ debug = false
 | `min_confidence` | string | `"low"` | `high` drops low-confidence findings before output and the exit code (`I` kept) |
 | `tier_model` | string | `"legacy"` | `confidence` maps high→V/High and low→R/Info; preserves detection method and informational severity |
 | `fail_on` | string | `"any"` | `high` exits `1` only on a `high`-graded finding; every finding is still reported |
+| `group_by_injection_point` | bool | `false` | Group findings by injection point with per-parameter verification states ([Grouping](../../guide/output/#grouping-by-injection-point)). CLI only; `dalfox server` and MCP ignore it |
+| `grouping_file` | string |  | JSONL persistence for false-positive marks and cross-run grouping history; implies grouping. CLI only; `dalfox server` and MCP ignore it |
 | `no_color` | bool | `false` | Disable ANSI colour |
 
 ### Targets

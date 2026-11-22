@@ -86,8 +86,22 @@ See [Resuming an interrupted scan](../../guide/scanning-modes/#resuming-an-inter
 | `--min-confidence` | `low` | `high` drops every `low`-confidence finding (every `R`, plus AST flows Dalfox cannot stand behind) before output, `target_summary` counts, `--baseline`, and the exit code. `I` findings carry no grade and are kept. `low` keeps everything |
 | `--tier-model` | `legacy` | `confidence` maps high to `V`/`High`, low to `R`/`Info`. Detection method stays unchanged; `--only-poc a` and `--limit-result-type a` select all AST findings. Config/REST/MCP: `tier_model` |
 | `--fail-on` | `any` | `high` exits `1` only when a reported finding is graded `high`. Anything not graded `high` (`R`, `I`, a `low` `V` or AST flow) stays in the report but does not fail the run. Changes only the exit code, after `--only-poc`, `--baseline` and `--min-confidence` |
+| `--group-by-injection-point` | false | Group findings by injection point instead of one flat list. Each group lists its parameters as entries carrying a verification state (`verified` / `suspected` / `unverified`); only `verified` entries count as high. The flat finding schema and exit codes are unchanged. See [Grouping by injection point](../../guide/output/#grouping-by-injection-point) |
+| `--grouping-file` |  | JSONL file that gives grouped runs cross-run memory: false-positive marks and first-seen / last-confirmed history. Implies `--group-by-injection-point`. CLI only (not applied by `dalfox server` / MCP) |
 
 See [Baselines](../../guide/output/#baselines-reporting-only-what-is-new) for the fingerprint rules and the CI recipe.
+
+### `dalfox findings`
+
+Triage commands that mutate a `--grouping-file` without running a scan.
+
+| Command | Purpose |
+|---------|---------|
+| `dalfox findings mark-fp --grouping-file PATH --entry-key ID [--note NOTE]` | Mark an injection-point entry a false positive. Later grouped scans suppress it (the record and any repeat hits are retained) |
+| `dalfox findings unmark-fp --grouping-file PATH --entry-key ID` | Clear a false-positive mark by appending a tombstone (the audit row is kept); the entry is reported again |
+
+The `entry-key` is the `entry_key` field printed on every entry of a grouped JSON/JSONL report.
+
 
 ### Target shaping
 
